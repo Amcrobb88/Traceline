@@ -1,6 +1,6 @@
 # TRACELINE
 
-TRACELINE is a browser-based audio oscilloscope with a late-1980s green CRT look. It displays live audio from a hardware input, browser/system audio capture, or the built-in demo synth.
+TRACELINE is a browser-based audio oscilloscope with a late-1980s green CRT look. It displays live audio from a hardware input or the built-in demo synth, with experimental support for browser tab/system audio capture.
 
 Open the live build:
 
@@ -27,14 +27,14 @@ The app runs fully in the browser. It does not upload, record, or store incoming
 ## Audio Sources
 
 - `Audio input`: uses a microphone, line input, USB interface, or other browser-visible input device.
-- `Browser tab / system audio`: captures audio from a shared browser tab or supported screen/window source.
+- `Tab / system audio beta`: attempts to capture audio from a shared browser tab or supported screen/window source.
 - `Built-in demo synth`: generates a test signal inside the app for quick setup, demos, and trigger experiments.
 
-For browser tab or system audio capture, use Chrome or Edge, enable audio sharing in the browser picker, and choose a source that actually provides an audio track. If no audio track is shared, TRACELINE shows `NO AUDIO SHARED`.
+Tab/system capture is browser-dependent and less reliable than direct audio input. Chrome and Edge generally have the best support. It usually requires selecting a browser tab or screen source that offers an audio checkbox, then enabling audio sharing in the browser picker. If no audio track is shared, TRACELINE shows `NO AUDIO SHARED`.
 
 ## Controls
 
-- `SOURCE`: choose audio input, browser/system capture, or the built-in demo synth.
+- `SOURCE`: choose audio input, tab/system capture beta, or the built-in demo synth.
 - `INPUT`: select the browser-visible input device.
 - `DUAL WAVE`, `PITCH`, `DETUNE`, `FILTER`, `MONITOR`, and `SPACE`: shape and monitor the built-in demo synth.
 - `SPACE: MONITOR` / `SPACE: TRACE TOO`: keep reverb audible only, or also feed the wet reverb into the displayed trace.

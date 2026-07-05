@@ -303,39 +303,62 @@
       throw new Error("NO_SHARE_API");
     }
 
-    let stream = null;
-
-    try {
-      stream = await navigator.mediaDevices.getDisplayMedia({
+    const captureOptions = [
+      {
         video: true,
-        audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false,
-          suppressLocalAudioPlayback: false
-        },
+        audio: true,
         systemAudio: "include",
         windowAudio: "system",
         surfaceSwitching: "include",
-        selfBrowserSurface: "exclude"
-      });
-    } catch (error) {
-      if (error && error.name !== "TypeError") {
-        throw error;
-      }
-
-      stream = await navigator.mediaDevices.getDisplayMedia({
+        selfBrowserSurface: "include"
+      },
+      {
         video: true,
         audio: true
-      });
+      }
+    ];
+    let stream = null;
+    let lastError = null;
+
+    for (const options of captureOptions) {
+      try {
+        stream = await navigator.mediaDevices.getDisplayMedia(options);
+        break;
+      } catch (error) {
+        lastError = error;
+        if (!error || error.name !== "TypeError") {
+          throw error;
+        }
+      }
     }
 
-    if (!stream.getAudioTracks().length) {
+    if (!stream) {
+      if (lastError) {
+        throw lastError;
+      }
+
+      throw new Error("NO_SHARE_API");
+    }
+
+    if (!stream.getAudioTracks().some((track) => track.readyState === "live")) {
       stream.getTracks().forEach((track) => track.stop());
       throw new Error("NO_SHARED_AUDIO");
     }
 
     return stream;
+  }
+
+  function audioOnlyStream(stream, emptyError = "NO_SHARED_AUDIO") {
+    const audioTracks = stream.getAudioTracks().filter((track) => track.readyState === "live");
+    if (!audioTracks.length) {
+      throw new Error(emptyError);
+    }
+
+    if (typeof MediaStream === "undefined") {
+      return stream;
+    }
+
+    return new MediaStream(audioTracks);
   }
 
   async function startSynthCapture(generation) {
@@ -494,7 +517,8 @@
 
     audioContext = context;
 
-    sourceNode = audioContext.createMediaStreamSource(stream);
+    const webAudioStream = audioOnlyStream(stream, sourceMode === "display" ? "NO_SHARED_AUDIO" : "NO_INPUT_FOUND");
+    sourceNode = audioContext.createMediaStreamSource(webAudioStream);
     captureNode = audioContext.createScriptProcessor(1024, 2, 1);
     monitorGain = audioContext.createGain();
     monitorGain.gain.value = 0;
@@ -542,6 +566,10 @@
 
     if (error && error.message === "NO_SHARED_AUDIO") {
       return "NO AUDIO SHARED";
+    }
+
+    if (error && error.message === "NO_INPUT_FOUND") {
+      return "NO INPUT FOUND";
     }
 
     if (!error || !error.name) {
