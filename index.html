@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TRACELINE</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="scope-shell" aria-label="CRT audio oscilloscope">
+      <header class="top-plate">
+        <div class="brand-block">
+          <span class="brand-logo">
+            <img src="traceline-logo.png" alt="TraceLine">
+          </span>
+          <span class="brand-subtitle">CRT Audio Scope</span>
+        </div>
+        <div class="status-cluster" aria-live="polite">
+          <span id="statusLight" class="status-light" aria-hidden="true"></span>
+          <span id="statusText">STANDBY</span>
+          <span id="sampleRateReadout">-- kHz</span>
+          <button id="controlsToggle" class="icon-button" type="button" aria-pressed="false" aria-label="Hide controls" title="Hide controls">
+            <span aria-hidden="true">&rsaquo;</span>
+          </button>
+        </div>
+      </header>
+
+      <section class="bench">
+        <section class="scope-face" aria-label="oscilloscope display">
+          <div class="screen-bezel">
+            <canvas id="gridCanvas" aria-hidden="true"></canvas>
+            <canvas id="persistCanvas" aria-hidden="true"></canvas>
+            <canvas id="scopeCanvas" aria-label="audio waveform display"></canvas>
+            <div class="crt-scanline" aria-hidden="true"></div>
+            <div class="crt-vignette" aria-hidden="true"></div>
+            <div class="readout readout-left">
+              <span>TIME</span>
+              <strong id="timeReadout">5 ms/DIV</strong>
+            </div>
+            <div class="readout readout-right">
+              <span>GAIN</span>
+              <strong id="gainReadout">2.5x</strong>
+            </div>
+            <div class="readout readout-bottom">
+              <span id="rmsReadout">RMS --</span>
+              <span id="peakReadout">PK --</span>
+              <span id="freqReadout">-- Hz</span>
+            </div>
+          </div>
+        </section>
+
+        <aside class="control-panel" aria-label="oscilloscope controls">
+          <div class="control-row transport-row">
+            <button id="startButton" class="command-button" type="button">
+              <span class="button-led" aria-hidden="true"></span>
+              <span>START</span>
+            </button>
+            <button id="holdButton" class="command-button secondary" type="button" aria-pressed="false">
+              <span>HOLD</span>
+            </button>
+            <button id="autoButton" class="command-button secondary" type="button">
+              <span>AUTO</span>
+            </button>
+          </div>
+
+          <fieldset class="control-group">
+            <legend>SOURCE</legend>
+            <label class="control-field wide">
+              <span>SOURCE</span>
+              <select id="sourceSelect">
+                <option value="input">Audio input</option>
+                <option value="display">Browser tab / system audio</option>
+                <option value="synth">Built-in demo synth</option>
+              </select>
+            </label>
+
+            <label id="inputField" class="control-field wide">
+              <span>INPUT</span>
+              <select id="inputSelect">
+                <option value="">Default audio input</option>
+              </select>
+            </label>
+
+            <label class="control-field synth-control">
+              <span>DUAL WAVE</span>
+              <select id="synthWave">
+                <option value="sawtooth">Saw</option>
+                <option value="square">Square</option>
+                <option value="triangle">Triangle</option>
+                <option value="sine">Sine</option>
+              </select>
+            </label>
+
+            <label class="slider-field synth-control">
+              <span>PITCH <output id="synthPitchLabel">110 Hz</output></span>
+              <input id="synthPitch" type="range" min="45" max="880" step="1" value="110">
+            </label>
+
+            <label class="slider-field synth-control">
+              <span>DETUNE <output id="synthDetuneLabel">+0.0 cents</output></span>
+              <input id="synthDetune" type="range" min="-50" max="50" step="0.1" value="0" data-wheel-step="1" data-wheel-fine-step="0.1" data-wheel-coarse-step="5">
+            </label>
+
+            <label class="slider-field synth-control">
+              <span>FILTER <output id="synthFilterLabel">2.7 kHz</output></span>
+              <input id="synthFilter" type="range" min="0" max="100" step="1" value="70">
+            </label>
+
+            <label class="slider-field synth-control">
+              <span>MONITOR <output id="synthMonitorLabel">55%</output></span>
+              <input id="synthMonitor" type="range" min="0" max="100" step="1" value="55">
+            </label>
+
+            <label class="slider-field synth-control">
+              <span>SPACE <output id="synthSpaceLabel">100%</output></span>
+              <input id="synthSpace" type="range" min="0" max="100" step="1" value="100">
+            </label>
+
+            <button id="synthSpaceToTrace" class="command-button secondary synth-control route-button" type="button" aria-pressed="false">SPACE: MONITOR</button>
+          </fieldset>
+
+          <fieldset class="control-group">
+            <legend>DISPLAY</legend>
+            <label class="control-field">
+              <span>MODE</span>
+              <select id="displayMode">
+                <option value="sweep">Sweep</option>
+                <option value="dual" selected>Dual</option>
+                <option value="xy">XY</option>
+              </select>
+            </label>
+
+            <label class="control-field sweep-only single-sweep-control">
+              <span>CHANNEL</span>
+              <select id="channelSelect">
+                <option value="mix">L + R mix</option>
+                <option value="left">Left</option>
+                <option value="right">Right</option>
+                <option value="difference">L - R</option>
+              </select>
+            </label>
+
+            <label class="control-field xy-control">
+              <span>X AXIS</span>
+              <select id="xChannelSelect">
+                <option value="left">Left</option>
+                <option value="right">Right</option>
+                <option value="mix">L + R mix</option>
+                <option value="difference">L - R</option>
+              </select>
+            </label>
+
+            <label class="control-field xy-control">
+              <span>Y AXIS</span>
+              <select id="yChannelSelect">
+                <option value="right">Right</option>
+                <option value="left">Left</option>
+                <option value="mix">L + R mix</option>
+                <option value="difference">L - R</option>
+              </select>
+            </label>
+
+            <div class="control-row invert-row xy-control">
+              <label class="toggle-field">
+                <input id="xInvert" type="checkbox">
+                <span>INV X</span>
+              </label>
+              <label class="toggle-field">
+                <input id="yInvert" type="checkbox">
+                <span>INV Y</span>
+              </label>
+            </div>
+
+            <div class="slider-bank">
+              <label class="slider-field">
+                <span>TIME/DIV <output id="timeSliderLabel">5 ms</output></span>
+                <input id="timeSlider" type="range" min="0" max="8" step="1" value="4">
+              </label>
+
+              <label class="slider-field">
+                <span>INPUT GAIN <output id="gainSliderLabel">+8.0 dB</output></span>
+                <input id="gainSlider" type="range" min="0.2" max="64" step="0.1" value="2.5">
+              </label>
+
+              <label class="slider-field sweep-only single-sweep-control">
+                <span>Y POS <output id="offsetSliderLabel">0.0 div</output></span>
+                <input id="offsetSlider" type="range" min="-1" max="1" step="0.01" value="0">
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="control-group dual-control">
+            <legend>CH1</legend>
+            <button id="ch1Toggle" class="command-button secondary channel-button" type="button" aria-pressed="true">CH1 ON</button>
+
+            <label class="control-field">
+              <span>SOURCE</span>
+              <select id="ch1Select">
+                <option value="left">Left</option>
+                <option value="right">Right</option>
+                <option value="mix">L + R mix</option>
+                <option value="difference">L - R</option>
+              </select>
+            </label>
+
+            <div class="slider-bank">
+              <label class="slider-field">
+                <span>GAIN <output id="ch1GainLabel">1.0x</output></span>
+                <input id="ch1Gain" type="range" min="0.2" max="6" step="0.1" value="1">
+              </label>
+
+              <label class="slider-field">
+                <span>Y POS <output id="ch1OffsetLabel">+1.6 div</output></span>
+                <input id="ch1Offset" type="range" min="-1.6" max="1.6" step="0.01" value="0.55">
+              </label>
+            </div>
+
+            <label class="toggle-field">
+              <input id="ch1Invert" type="checkbox">
+              <span>INV CH1</span>
+            </label>
+          </fieldset>
+
+          <fieldset class="control-group dual-control">
+            <legend>CH2</legend>
+            <button id="ch2Toggle" class="command-button secondary channel-button" type="button" aria-pressed="true">CH2 ON</button>
+
+            <label class="control-field">
+              <span>SOURCE</span>
+              <select id="ch2Select">
+                <option value="right">Right</option>
+                <option value="left">Left</option>
+                <option value="mix">L + R mix</option>
+                <option value="difference">L - R</option>
+              </select>
+            </label>
+
+            <div class="slider-bank">
+              <label class="slider-field">
+                <span>GAIN <output id="ch2GainLabel">1.0x</output></span>
+                <input id="ch2Gain" type="range" min="0.2" max="6" step="0.1" value="1">
+              </label>
+
+              <label class="slider-field">
+                <span>Y POS <output id="ch2OffsetLabel">-1.6 div</output></span>
+                <input id="ch2Offset" type="range" min="-1.6" max="1.6" step="0.01" value="-0.55">
+              </label>
+            </div>
+
+            <label class="toggle-field">
+              <input id="ch2Invert" type="checkbox">
+              <span>INV CH2</span>
+            </label>
+          </fieldset>
+
+          <fieldset class="control-group sweep-only">
+            <legend>TRIGGER</legend>
+            <label class="control-field">
+              <span>MODE</span>
+              <select id="triggerMode">
+                <option value="auto">Auto</option>
+                <option value="normal">Normal</option>
+                <option value="free">Free run</option>
+              </select>
+            </label>
+
+            <label class="control-field">
+              <span>SLOPE</span>
+              <select id="triggerSlope">
+                <option value="rising">Rising</option>
+                <option value="falling">Falling</option>
+              </select>
+            </label>
+
+            <label class="control-field">
+              <span>SEEK</span>
+              <select id="triggerSeek">
+                <option value="edge">Edge</option>
+                <option value="line">Long line</option>
+                <option value="peak">Peak</option>
+              </select>
+            </label>
+
+            <label class="control-field">
+              <span>SRC</span>
+              <select id="triggerSource">
+                <option value="display">Display</option>
+                <option value="ch1">CH1</option>
+                <option value="ch2">CH2</option>
+                <option value="mix">L + R mix</option>
+              </select>
+            </label>
+
+            <label class="control-field peak-control">
+              <span>PEAK</span>
+              <select id="triggerPeakMode">
+                <option value="high">High</option>
+                <option value="low">Low</option>
+              </select>
+            </label>
+
+            <div class="slider-bank">
+              <label class="slider-field">
+                <span>FILTER <output id="triggerFilterLabel">2.4 kHz</output></span>
+                <input id="triggerFilter" type="range" min="0" max="100" step="1" value="35">
+              </label>
+
+              <label class="slider-field trigger-level-control">
+                <span>LEVEL <output id="triggerSliderLabel">+0.0% FS</output></span>
+                <input id="triggerSlider" type="range" min="-0.556" max="0.556" step="0.001" value="0">
+              </label>
+
+              <label class="slider-field peak-control">
+                <span>OFFSET <output id="triggerPeakOffsetLabel">0%</output></span>
+                <input id="triggerPeakOffset" type="range" min="0" max="100" step="1" value="0">
+              </label>
+
+              <label class="slider-field">
+                <span>POS X <output id="triggerPosSliderLabel">50%</output></span>
+                <input id="triggerPosSlider" type="range" min="5" max="85" step="1" value="50">
+              </label>
+            </div>
+
+            <button id="detectorOverlay" class="command-button secondary route-button" type="button" aria-pressed="false">DETECTOR: OFF</button>
+          </fieldset>
+
+          <fieldset class="control-group">
+            <legend>CRT</legend>
+            <div class="slider-bank">
+              <label class="slider-field">
+                <span>PERSIST <output id="persistSliderLabel">0.9 s</output></span>
+                <input id="persistSlider" type="range" min="0" max="100" step="1" value="68">
+              </label>
+
+              <label class="slider-field">
+                <span>TRACE <output id="brightSliderLabel">90%</output></span>
+                <input id="brightSlider" type="range" min="25" max="140" step="1" value="90">
+              </label>
+
+              <label class="slider-field">
+                <span>GRID <output id="gridSliderLabel">48%</output></span>
+                <input id="gridSlider" type="range" min="0" max="100" step="1" value="48">
+              </label>
+
+              <label class="slider-field">
+                <span>FOCUS <output id="focusSliderLabel">62%</output></span>
+                <input id="focusSlider" type="range" min="0" max="100" step="1" value="62">
+              </label>
+            </div>
+          </fieldset>
+        </aside>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
